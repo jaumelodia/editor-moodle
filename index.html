@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Visual Plantilla Moodle</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for toolbar icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Turndown library for HTML to Markdown export -->
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+</head>
+
+<body>
+    <div class="editor-container">
+        <header class="editor-header">
+            <h2>Editor Visual Moodle</h2>
+            <div class="dropdown">
+                <button id="download-dropdown-btn" class="export-btn">
+                    <i class="fas fa-download"></i> Descargar <i class="fas fa-chevron-down"
+                        style="font-size: 0.8em; margin-left: 5px;"></i>
+                </button>
+                <div id="download-menu" class="dropdown-content">
+                    <a href="#" id="export-html-btn"><i class="fas fa-code"></i> Código HTML</a>
+                    <a href="#" id="export-md-btn"><i class="fab fa-markdown"></i> Documento Markdown</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <button type="button" class="tool-btn" data-command="undo" title="Deshacer"><i
+                        class="fas fa-undo"></i></button>
+                <button type="button" class="tool-btn" data-command="redo" title="Rehacer"><i
+                        class="fas fa-redo"></i></button>
+            </div>
+
+            <div class="toolbar-group">
+                <button type="button" class="tool-btn" data-command="bold" title="Negrita"><i
+                        class="fas fa-bold"></i></button>
+                <button type="button" class="tool-btn" data-command="italic" title="Cursiva"><i
+                        class="fas fa-italic"></i></button>
+                <button type="button" class="tool-btn" data-command="underline" title="Subrayado"><i
+                        class="fas fa-underline"></i></button>
+                <button type="button" class="tool-btn" data-command="createLink" title="Enlace"><i
+                        class="fas fa-link"></i></button>
+                <button type="button" class="tool-btn" id="mark-btn" title="Resaltado (Mark)"><i
+                        class="fas fa-highlighter"></i></button>
+            </div>
+
+            <div class="toolbar-group">
+                <button type="button" class="tool-btn" data-command="justifyLeft" title="Alinear a la izquierda"><i
+                        class="fas fa-align-left"></i></button>
+                <button type="button" class="tool-btn" data-command="justifyCenter" title="Alinear al centro"><i
+                        class="fas fa-align-center"></i></button>
+                <button type="button" class="tool-btn" data-command="justifyRight" title="Alinear a la derecha"><i
+                        class="fas fa-align-right"></i></button>
+                <button type="button" class="tool-btn" data-command="justifyFull" title="Justificar texto"><i
+                        class="fas fa-align-justify"></i></button>
+            </div>
+
+            <div class="toolbar-group">
+                <select id="format-block" class="tool-select">
+                    <option value="">Formato Texto...</option>
+                    <option value="p">Párrafo Normal</option>
+                    <option value="h1">Título 1 (Módulos)</option>
+                    <option value="h2">Título 2 (Apartados)</option>
+                    <option value="h3">Título 3</option>
+                    <option value="h4">Título 4</option>
+                    <option value="blockquote">Cita (Blockquote)</option>
+                </select>
+            </div>
+
+            <div class="toolbar-group">
+                <button type="button" class="tool-btn" data-command="insertUnorderedList" title="Lista Buleada"><i
+                        class="fas fa-list-ul"></i></button>
+                <button type="button" class="tool-btn" data-command="insertOrderedList" title="Lista Numerada"><i
+                        class="fas fa-list-ol"></i></button>
+            </div>
+
+            <div class="toolbar-group">
+                <input type="file" id="image-upload" accept="image/*" style="display: none;">
+                <label for="image-upload" class="tool-btn" id="image-btn" title="Insertar Imagen Local"
+                    style="margin: 0; cursor: pointer; display: flex;"><i class="fas fa-image"></i></label>
+            </div>
+
+            <div class="toolbar-group">
+                <select id="insert-block" class="tool-select">
+                    <option value="">+ Insertar Elemento...</option>
+                    <option disabled>--- Avisos ---</option>
+                    <option value="callout-blue">💡 Aviso Azul (Idea/Concepto)</option>
+                    <option value="callout-green">✅ Aviso Verde (Éxito/Buena Práctica)</option>
+                    <option value="callout-red">⚠️ Aviso Rojo (Atención/Peligro)</option>
+                    <option value="callout-orange">🔥 Aviso Naranja (Importante)</option>
+                    <option value="callout-gray">📝 Aviso Gris (Nota)</option>
+                    <option value="callout-purple">🤔 Aviso Morado (Info/Reflexión)</option>
+                    <option value="callout-pink">✨ Aviso Rosa (Curiosidad)</option>
+                    <option value="callout-cefire">🎓 Aviso Cefire (Institucional)</option>
+                    <option disabled>--- Componentes ---</option>
+                    <option value="details">Desplegable (Acordeón)</option>
+                    <option value="cards">Grid de Tarjetas (3 cols)</option>
+                    <option value="tabs">Pestañas (3 tabs)</option>
+                    <option value="table">Tabla Básica</option>
+                    <option value="code">Bloque de Código</option>
+                    <option value="divider">Separador Lineal</option>
+                    <option value="button">Botón de Acción</option>
+                </select>
+                <button type="button" class="tool-btn" id="insert-btn" title="Insertar"><i
+                        class="fas fa-plus"></i></button>
+            </div>
+
+            <div class="toolbar-group" style="margin-left: auto;">
+                <button type="button" class="tool-btn" id="html-source-btn" title="Ver/Editar Código HTML"><i
+                        class="fas fa-code"></i></button>
+                <button type="button" class="tool-btn" id="clear-btn" title="Limpiar todo el documento"
+                    style="color: #ef4444;"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+
+        <div class="editor-workspace">
+            <!-- Este div contiente todas las clases y magia visual -->
+            <div id="editor-canvas" class="editor-canvas" contenteditable="true">
+                <h1>🎓 Título del Módulo</h1>
+                <p>Empieza a escribir el contenido de tu curso aquí...</p>
+            </div>
+
+            <!-- Contenedor oculto para editar el HTML en crudo -->
+            <textarea id="html-source-editor" class="html-source-editor" spellcheck="false"
+                style="display: none;"></textarea>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
