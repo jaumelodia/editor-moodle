@@ -155,6 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const toolBtns = document.querySelectorAll('.tool-btn[data-command]');
     const downloadDropdownBtn = document.getElementById('download-dropdown-btn');
     const downloadMenu = document.getElementById('download-menu');
+    const importHtmlBtn = document.getElementById('import-html-btn');
+    const importHtmlInput = document.getElementById('import-html-input');
     const exportHtmlBtn = document.getElementById('export-html-btn');
     const exportMdBtn = document.getElementById('export-md-btn');
     const formatSelect = document.getElementById('format-block');
@@ -177,6 +179,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- NEW LOGIC: Exit components with Escape or Click ---
     editorCanvas.addEventListener('keydown', (e) => {
+        // Fix for Enter key inside <pre> / <code> blocks creating new blocks
+        if (e.key === 'Enter') {
+            const selection = window.getSelection();
+            if (selection.rangeCount) {
+                let node = selection.anchorNode;
+                let insideCodeBlock = false;
+
+                while (node && node !== editorCanvas) {
+                    if (node.tagName === 'PRE' || node.tagName === 'CODE') {
+                        insideCodeBlock = true;
+                        break;
+                    }
+                    node = node.parentNode;
+                }
+
+                if (insideCodeBlock && !e.shiftKey) {
+                    e.preventDefault();
+                    document.execCommand('insertText', false, '\n');
+                    return;
+                }
+            }
+        }
+
         if (e.key === 'Escape') {
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
@@ -238,6 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Only act if clicking directly on the canvas background
         if (e.target === editorCanvas) {
+            // Check if there's a valid text selection (e.g. from click and drag)
+            const selection = window.getSelection();
+            if (selection && !selection.isCollapsed) {
+                return; // Do nothing if the user highlighted text across the canvas
+            }
+
             let targetNode = null;
             let insertBeforeNode = null;
 
@@ -285,6 +316,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     // --- END NEW LOGIC ---
+
+    // Smart Paste handling (adapt copied styles to our editor)
+    editorCanvas.addEventListener('paste', (e) => {
+        const html = e.clipboardData.getData('text/html');
+        const text = e.clipboardData.getData('text/plain');
+
+        if (html) {
+            e.preventDefault();
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+
+            // Remove potentially harmful or layout-breaking tags
+            const removeTags = ['script', 'style', 'iframe', 'object', 'embed', 'meta', 'link'];
+            removeTags.forEach(tag => {
+                tempDiv.querySelectorAll(tag).forEach(el => el.remove());
+            });
+
+            // Strip inline styles and unwanted classes
+            tempDiv.querySelectorAll('*').forEach(el => {
+                if (el.hasAttribute('style')) {
+                    el.removeAttribute('style');
+                }
+
+                // Retain classes only if they are intrinsic to our templates
+                if (el.className) {
+                    const classes = el.className.split(' ');
+                    const validClasses = classes.filter(c =>
+                        c.startsWith('b-') || // Callouts (b-blue, b-red, etc)
+                        c.includes('align-') || // Alignment
+                        c === 'concept-card' || c === 'cards-grid' ||
+                        c.includes('tab') ||
+                        c.includes('mindmap') ||
+                        c === 'details-content' ||
+                        c === 'table-container' ||
+                        c.includes('moodle-index') ||
+                        c === 'styled-image' ||
+                        c === 'styled-video' ||
+                        c === 'btn-action' ||
+                        c === 'image-resizer-wrapper'
+                    );
+
+                    if (validClasses.length > 0) {
+                        el.className = validClasses.join(' ');
+                    } else {
+                        el.removeAttribute('class');
+                    }
+                }
+            });
+
+            const cleanHTML = tempDiv.innerHTML;
+            document.execCommand('insertHTML', false, cleanHTML);
+        } else if (text) {
+            e.preventDefault();
+            document.execCommand('insertText', false, text);
+        }
+    });
 
     // Track selection to restore position after choosing a file
     let lastSelection = null;
@@ -861,6 +949,49 @@ document.addEventListener('DOMContentLoaded', () => {
             downloadMenu.classList.remove('show');
         }
     });
+
+    // Import HTML Logic
+    if (importHtmlBtn && importHtmlInput) {
+        importHtmlBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            downloadMenu.classList.remove('show');
+            importHtmlInput.click();
+        });
+
+        importHtmlInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!confirm('¿Estás seguro de que quieres importar este documento? Se sobrescribirá el contenido actual del editor.')) {
+                e.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const htmlString = event.target.result;
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlString, 'text/html');
+
+                // El contenido normal debería estar dentro de .fade-in-up en nuestras plantillas exportadas
+                const container = doc.querySelector('.fade-in-up') || doc.body;
+
+                if (container) {
+                    editorCanvas.innerHTML = container.innerHTML;
+
+                    // Re-hidratar comportamientos (mapas mentales, posibles acordeones, etc)
+                    setTimeout(() => {
+                        window.renderMindmaps(editorCanvas);
+                        editorCanvas.focus();
+                    }, 50);
+                } else {
+                    alert('No se pudo leer el contenido del documento HTML.');
+                }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        });
+    }
 
     // Export HTML Generation
     exportHtmlBtn.addEventListener('click', (e) => {

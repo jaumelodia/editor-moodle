@@ -21,14 +21,17 @@
             <h2>Editor Visual Moodle</h2>
             <div class="dropdown">
                 <button id="download-dropdown-btn" class="export-btn">
-                    <i class="fas fa-download"></i> Descargar <i class="fas fa-chevron-down"
+                    <i class="fas fa-file-export"></i> Archivo <i class="fas fa-chevron-down"
                         style="font-size: 0.8em; margin-left: 5px;"></i>
                 </button>
                 <div id="download-menu" class="dropdown-content">
-                    <a href="#" id="export-html-btn"><i class="fas fa-code"></i> Código HTML</a>
-                    <a href="#" id="export-md-btn"><i class="fab fa-markdown"></i> Documento Markdown</a>
+                    <a href="#" id="import-html-btn"><i class="fas fa-file-import"></i> Importar HTML</a>
+                    <a href="#" id="export-html-btn"><i class="fas fa-code"></i> Exportar a HTML</a>
+                    <a href="#" id="export-md-btn"><i class="fab fa-markdown"></i> Exportar a Markdown</a>
                 </div>
             </div>
+            <!-- Campo oculto para cargar archivos HTML -->
+            <input type="file" id="import-html-input" accept=".html" style="display: none;">
         </header>
 
         <div class="toolbar">
