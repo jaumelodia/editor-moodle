@@ -954,28 +954,23 @@ html {
     vertical-align: top;
 }
 
-.editor-canvas .image-resizer-wrapper img.styled-image,
-.editor-canvas .image-resizer-wrapper video.styled-video {
+.editor-canvas .image-resizer-wrapper img.styled-image {
     width: 100%;
     height: auto;
     display: block;
+    cursor: zoom-in;
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow-sm);
     transition: transform var(--transition-speed), box-shadow var(--transition-speed);
 }
 
-.editor-canvas .image-resizer-wrapper img.styled-image {
-    cursor: zoom-in;
-}
-
-
-
-.editor-canvas .image-resizer-wrapper:hover img.styled-image,
-.editor-canvas .image-resizer-wrapper:hover video.styled-video {
+.editor-canvas .image-resizer-wrapper:hover img.styled-image {
     box-shadow: var(--shadow-hover);
 }
 
-
+.editor-canvas.is-resizing iframe {
+    pointer-events: none !important;
+}
 
 .editor-canvas .custom-resizer {
 

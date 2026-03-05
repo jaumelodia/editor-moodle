@@ -405,8 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const base64Data = event.target.result;
             // Wrap in a resizable, inline-block span so it can be dragged and resized freely. 
             // Setting contenteditable="false" forces the browser to treat it as a solid draggable block.
-            // Setting contenteditable="false" forces the browser to treat it as a solid draggable block.
-            const imgHTML = `<span class="image-resizer-wrapper align-center" contenteditable="false"><img src="${base64Data}" class="styled-image" alt="Imagen del curso"><span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>`;
+            const imgHTML = `&nbsp;<span class="image-resizer-wrapper align-center" contenteditable="false"><img src="${base64Data}" class="styled-image" alt="Imagen del curso"><span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>&nbsp;`;
 
             editorCanvas.focus();
             if (lastSelection) {
@@ -446,21 +445,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 let mediaElement = '';
                 if (isVideoTag) {
                     mediaElement = `<video src="${embedUrl}" class="styled-video" controls style="width: 100%; height: auto; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); display: block;" controlsList="nodownload"></video>`;
-                    const vidHTML = `<span class="image-resizer-wrapper align-center" contenteditable="false" style="width: 60%;">${mediaElement}<span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>`;
-                    editorCanvas.focus();
-                    document.execCommand('insertHTML', false, vidHTML);
-                } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                    // Rawest Possible YouTube Embed to avoid Error 153 - Verbatim as requested
-                    const rawYT = `<iframe width="560" height="315" src="${embedUrl}${embedUrl.includes('?') ? '&' : '?'}controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
-                    editorCanvas.focus();
-                    document.execCommand('insertHTML', false, rawYT);
                 } else {
-                    // Vimeo or others
-                    mediaElement = `<iframe src="${embedUrl}" class="styled-video" style="width: 100%; aspect-ratio: 16/9; border: none; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); display: block; pointer-events: auto;" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
-                    const vidHTML = `<span class="image-resizer-wrapper align-center" contenteditable="false" style="width: 60%;">${mediaElement}<span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>`;
-                    editorCanvas.focus();
-                    document.execCommand('insertHTML', false, vidHTML);
+                    // pointer-events: auto so it can be clicked, but we rely on a wrapper overlay for resizing edge interaction
+                    mediaElement = `<iframe src="${embedUrl}" class="styled-video" style="width: 100%; aspect-ratio: 16/9; border: none; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); display: block; pointer-events: auto;" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>`;
                 }
+
+                // Add align-center string by default
+                const vidHTML = `&nbsp;<span class="image-resizer-wrapper align-center" contenteditable="false" style="width: 60%;">${mediaElement}<span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>&nbsp;`;
+
+                editorCanvas.focus();
+                document.execCommand('insertHTML', false, vidHTML);
             }
         });
     }
@@ -747,13 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         /* Image Styling */
         .image-resizer-wrapper { display: inline-block; position: relative; width: 60%; min-width: 150px; max-width: 100%; margin: 10px; vertical-align: top; }
-        .image-resizer-wrapper.align-left { float: left; margin: 10px 20px 10px 0; }
-        .image-resizer-wrapper.align-center { display: block; margin: 20px auto; text-align: center; }
-        .image-resizer-wrapper.align-right { float: right; margin: 10px 0 10px 20px; }
-        .image-resizer-wrapper.align-full { display: block; width: 100% !important; margin: 20px 0; }
-        .image-resizer-wrapper img.styled-image, .image-resizer-wrapper video.styled-video { width: 100%; height: auto; display: block; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); }
-        .image-resizer-wrapper img.styled-image { cursor: zoom-in; transition: transform var(--transition-speed), box-shadow var(--transition-speed); }
-        .image-resizer-wrapper img.styled-image:hover { transform: scale(1.02); box-shadow: var(--shadow-hover); }
+        .image-resizer-wrapper img.styled-image { width: 100%; height: auto; display: block; cursor: zoom-in; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); transition: transform var(--transition-speed), box-shadow var(--transition-speed); }
         .image-resizer-wrapper img.styled-image:hover { transform: scale(1.02); box-shadow: var(--shadow-hover); }
         .custom-resizer { display: none !important; }
         
