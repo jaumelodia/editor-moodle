@@ -745,6 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
         .image-resizer-wrapper img.styled-image:hover { transform: scale(1.02); box-shadow: var(--shadow-hover); }
         .custom-resizer { display: none !important; }
         
+        /* Image Alignment */
+        .image-resizer-wrapper.align-left { display: block; margin-left: 0; margin-right: auto; }
+        .image-resizer-wrapper.align-center { display: block; margin-left: auto; margin-right: auto; }
+        .image-resizer-wrapper.align-right { display: block; margin-left: auto; margin-right: 0; }
+        
         /* Mindmap Styling */
         .mindmap-wrapper { position: relative; width: 100%; margin: 2.5rem 0; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); background: white; overflow: visible; border: 1px solid #e2e8f0; user-select: none; -webkit-user-select: none; }
         .mindmap { display: block; width: 100%; height: 400px; pointer-events: auto; overflow: visible; }
@@ -767,6 +772,15 @@ document.addEventListener('DOMContentLoaded', () => {
         .image-zoom-modal.active .image-zoom-content { transform: scale(1); }
         .image-zoom-close { position: absolute; top: 20px; right: 30px; color: #f8fafc; font-size: 40px; font-weight: bold; cursor: pointer; transition: color 0.2s; }
         .image-zoom-close:hover { color: #93b9ff; }
+        .anchor-point { 
+            display: inline-block;
+            height: 0;
+            width: 0;
+            overflow: hidden;
+            visibility: hidden;
+            pointer-events: none;
+            scroll-margin-top: 100px; /* Space for the header if needed */
+        }
     </style>
 </head>
 <body>
@@ -864,8 +878,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear SVG drawn paths so the initialization script renders them cleanly once
         tempCanvas.querySelectorAll('svg.mindmap').forEach(svg => svg.innerHTML = '');
 
+        // Ensure all accordions (details) are closed in the export
+        tempCanvas.querySelectorAll('details').forEach(details => details.removeAttribute('open'));
+
+        // Generate Index if placeholder exists
+        const tocHTML = generateTOC(tempCanvas);
+        tempCanvas.querySelectorAll('.index-placeholder').forEach(placeholder => {
+            placeholder.outerHTML = tocHTML;
+        });
+
         // Obtenemos el contenido
-        const htmlContent = getTemplateHTML(tempCanvas.innerHTML);
+        let innerHTML = tempCanvas.innerHTML;
+
+        // Convert [#anchor] or [ #anchor ] to <span id="anchor" class="anchor-point"></span>
+        innerHTML = innerHTML.replace(/\[\s*#\s*([^\]\s]+)\s*\]/g, '<span id="$1" class="anchor-point"></span>');
+
+        const htmlContent = getTemplateHTML(innerHTML);
 
         // Creamos y descargamos el archivo
         const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
@@ -891,6 +919,15 @@ document.addEventListener('DOMContentLoaded', () => {
         tempCanvas.querySelectorAll('.mindmap-edit-btn').forEach(el => el.remove());
         tempCanvas.querySelectorAll('.mindmap-text-editor').forEach(el => el.remove());
 
+        // Ensure all accordions (details) are closed in the export
+        tempCanvas.querySelectorAll('details').forEach(details => details.removeAttribute('open'));
+
+        // Generate Index if placeholder exists
+        const tocHTML = generateTOC(tempCanvas);
+        tempCanvas.querySelectorAll('.index-placeholder').forEach(placeholder => {
+            placeholder.outerHTML = tocHTML;
+        });
+
         // Remove empty placeholders
         tempCanvas.querySelectorAll('[contenteditable="false"]').forEach(el => el.removeAttribute('contenteditable'));
 
@@ -904,7 +941,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Keep complex components as raw HTML to ensure they work in Moodle/Google Docs
         turndownService.keep(['div', 'span', 'details', 'summary', 'table', 'thead', 'tbody', 'tr', 'th', 'td']);
 
-        const markdownContent = turndownService.turndown(tempCanvas.innerHTML);
+        let innerHTML = tempCanvas.innerHTML;
+        // Also convert for Markdown export
+        innerHTML = innerHTML.replace(/\[\s*#\s*([^\]\s]+)\s*\]/g, '<span id="$1" class="anchor-point"></span>');
+
+        const markdownContent = turndownService.turndown(innerHTML);
 
         // Download Markdown File
         const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
@@ -990,7 +1031,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             </pre>
         </div><p><br></p>`;
-        }
+        },
+        'index': `<div class="index-placeholder" contenteditable="false">
+            <div class="index-header">Índice de Contenidos</div>
+            <div class="index-body">Este espacio se convertirá automáticamente en un índice con hipervínculos al exportar.</div>
+        </div><p><br></p>`
     };
 
     const insertElement = () => {
@@ -1012,6 +1057,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         insertSelect.value = '';
+    };
+
+    // TOC / Index Generator
+    const generateTOC = (container) => {
+        const headers = container.querySelectorAll('h1, h2, h3, h4');
+        if (headers.length === 0) return '<p><i>No se han encontrado títulos (T1-T4) para generar el índice.</i></p>';
+
+        let tocHTML = '<div class="moodle-index"><ul>';
+
+        headers.forEach((header, index) => {
+            // Generate ID if missing
+            if (!header.id || header.id.startsWith('toc-')) {
+                const slug = header.textContent.toLowerCase()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                    .substring(0, 50);
+                header.id = `toc-${slug}-${index}`;
+            }
+
+            const level = header.tagName.toLowerCase();
+            const text = header.textContent.trim();
+            tocHTML += `<li class="moodle-index-item moodle-index-${level}"><a href="#${header.id}">${text}</a></li>`;
+        });
+
+        tocHTML += '</ul></div>';
+        return tocHTML;
     };
 
     insertBtn.addEventListener('click', insertElement);
