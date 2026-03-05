@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Turndown library for HTML to Markdown export -->
     <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <!-- Markmap -->
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.2.0"></script>
 </head>
 
 <body>
@@ -83,6 +86,8 @@
                 <input type="file" id="image-upload" accept="image/*" style="display: none;">
                 <label for="image-upload" class="tool-btn" id="image-btn" title="Insertar Imagen Local"
                     style="margin: 0; cursor: pointer; display: flex;"><i class="fas fa-image"></i></label>
+                <button type="button" class="tool-btn" id="video-btn" title="Insertar Vídeo (URL)"><i
+                        class="fas fa-video"></i></button>
             </div>
 
             <div class="toolbar-group">
@@ -103,6 +108,7 @@
                     <option value="tabs">Pestañas (3 tabs)</option>
                     <option value="table">Tabla Básica</option>
                     <option value="code">Bloque de Código</option>
+                    <option value="mindmap">Mapa Mental</option>
                     <option value="divider">Separador Lineal</option>
                     <option value="button">Botón de Acción</option>
                 </select>

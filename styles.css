@@ -800,7 +800,100 @@ html {
     color: #64748b;
     flex: 1;
     text-align: center;
+    transition: all 0.3s ease;
     border-bottom: 3px solid transparent;
+}
+
+/* Mindmap */
+.editor-canvas .mindmap-wrapper {
+    position: relative;
+    width: 100%;
+    margin: 2.5rem 0;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm);
+    background: white;
+    overflow: visible;
+    border: 1px solid #e2e8f0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.editor-canvas .mindmap {
+    display: block;
+    width: 100%;
+    height: 400px;
+    pointer-events: auto;
+    overflow: visible;
+}
+
+.editor-canvas .mindmap-edit-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 10;
+    background: white;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.editor-canvas .mindmap-center-btn {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    z-index: 10;
+    background: white;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 10px;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+}
+
+.editor-canvas .mindmap-edit-btn:hover {
+    background: #f8fafc;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.editor-canvas .mindmap-center-btn:hover {
+    background: #f8fafc;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.editor-canvas .mindmap-text-editor {
+    display: none;
+    width: 100%;
+    min-height: 400px;
+    padding: 25px;
+    box-sizing: border-box;
+    border: none;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 15px;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    border-radius: var(--border-radius-lg);
 }
 
 .editor-canvas .tab-content {
@@ -861,21 +954,31 @@ html {
     vertical-align: top;
 }
 
-.editor-canvas .image-resizer-wrapper img.styled-image {
+.editor-canvas .image-resizer-wrapper img.styled-image,
+.editor-canvas .image-resizer-wrapper video.styled-video {
     width: 100%;
     height: auto;
     display: block;
-    cursor: zoom-in;
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow-sm);
     transition: transform var(--transition-speed), box-shadow var(--transition-speed);
 }
 
-.editor-canvas .image-resizer-wrapper:hover img.styled-image {
+.editor-canvas .image-resizer-wrapper img.styled-image {
+    cursor: zoom-in;
+}
+
+
+
+.editor-canvas .image-resizer-wrapper:hover img.styled-image,
+.editor-canvas .image-resizer-wrapper:hover video.styled-video {
     box-shadow: var(--shadow-hover);
 }
 
+
+
 .editor-canvas .custom-resizer {
+
     position: absolute;
     bottom: -15px;
     right: -15px;
@@ -887,7 +990,8 @@ html {
     cursor: nwse-resize;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     opacity: 0;
-    transition: opacity 0.2s, transform 0.2s;
+    transition: opacity 0.2s,
+        transform 0.2s;
     z-index: 10;
     display: flex;
     align-items: center;

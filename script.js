@@ -1,3 +1,155 @@
+window.renderMindmaps = function (container) {
+    if (typeof window.markmap === 'undefined') return;
+    const { Markmap } = window.markmap;
+
+    // Simple parser: indented text to Markmap JSON
+    const textToMarkmapJSON = (text) => {
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        if (lines.length === 0) return { t: 'root', d: 0, v: 'Vacío', c: [] };
+
+        const root = { t: 'root', d: 0, v: lines[0].trim(), c: [] };
+        const stack = [{ node: root, indent: -1 }]; // We treat root as indent -1
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            const textContent = line.trim();
+            if (!textContent) continue;
+
+            // Calculate indent by counting leading dashes
+            const leadingDashesMatch = line.match(/^-+/);
+            const leadingDashes = leadingDashesMatch ? leadingDashesMatch[0].length : 0;
+            const textContentClean = textContent.replace(/^-+\s*/, '').trim();
+
+            const node = { t: 'heading', d: 0, v: textContentClean || textContent, c: [] };
+
+            // Pop stack until we find the correct parent
+            while (stack.length > 1 && stack[stack.length - 1].indent >= leadingDashes) {
+                stack.pop();
+            }
+
+            const parent = stack[stack.length - 1].node;
+            node.d = parent.d !== undefined ? parent.d + 1 : 1;
+
+            if (!parent.c) parent.c = [];
+            parent.c.push(node);
+
+            stack.push({ node, indent: leadingDashes });
+        }
+
+        // Cleanup empty 'c' arrays
+        const cleanEmptyC = (n) => {
+            if (n.c && n.c.length === 0) delete n.c;
+            if (n.c) n.c.forEach(cleanEmptyC);
+        };
+        cleanEmptyC(root);
+
+        return root;
+    };
+
+    // Simple serializer: JSON to indented text
+    const markmapJSONToText = (node, indent = '') => {
+        let text = indent + (node.v || '') + '\n';
+        if (node.c && node.c.length > 0) {
+            node.c.forEach(child => {
+                text += markmapJSONToText(child, indent + '-'); // 1 dash per level
+            });
+        }
+        return text;
+    };
+
+    container.querySelectorAll('.mindmap-wrapper').forEach(wrapper => {
+        const svg = wrapper.querySelector('svg.mindmap');
+        const dataScript = wrapper.querySelector('.markmap-data');
+        const editBtn = wrapper.querySelector('.mindmap-edit-btn');
+        let editorDiv = wrapper.querySelector('.mindmap-text-editor');
+
+        if (svg && dataScript) {
+            try {
+                // Parse cleanly
+                const rawData = JSON.parse(dataScript.textContent);
+
+                // Deep clone 
+                const data = JSON.parse(JSON.stringify(rawData));
+
+                // Always re-render the SVG
+                svg.innerHTML = '';
+                const mm = Markmap.create(svg, { autoFit: true, initialExpandLevel: 2 }, data);
+
+                // Set up center button if it exists and hasn't been set up
+                const centerBtn = wrapper.querySelector('.mindmap-center-btn');
+                if (centerBtn && !centerBtn.hasAttribute('data-initialized')) {
+                    centerBtn.setAttribute('data-initialized', 'true');
+                    centerBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        mm.fit();
+                    });
+                }
+
+                // Set up edit button if it exists and hasn't been set up
+                if (editBtn && !editBtn.hasAttribute('data-initialized')) {
+                    editBtn.setAttribute('data-initialized', 'true');
+
+                    editBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const isEditing = wrapper.classList.contains('editing');
+
+                        if (!isEditing) {
+                            // ENTER EDIT MODE
+                            wrapper.classList.add('editing');
+                            editBtn.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
+                            editBtn.style.backgroundColor = '#10b981'; // Green for save
+                            editBtn.style.color = 'white';
+
+                            // Initialize editor div if it doesn't exist
+                            if (!editorDiv) {
+                                editorDiv = document.createElement('textarea');
+                                editorDiv.className = 'mindmap-text-editor';
+                                editorDiv.setAttribute('spellcheck', 'false');
+                                wrapper.appendChild(editorDiv);
+                            }
+
+                            // Transform JSON to text
+                            const currentData = JSON.parse(dataScript.textContent);
+                            editorDiv.value = markmapJSONToText(currentData).trim();
+
+                            svg.style.display = 'none';
+                            editorDiv.style.display = 'block';
+                            editorDiv.focus();
+
+                        } else {
+                            // EXIT EDIT MODE (SAVE)
+                            wrapper.classList.remove('editing');
+                            editBtn.innerHTML = '<i class="fas fa-edit"></i> Editar Mapa Mental';
+                            editBtn.style.backgroundColor = '';
+                            editBtn.style.color = '';
+
+                            if (editorDiv) {
+                                // Parse text back to JSON
+                                const newText = editorDiv.value;
+                                const parsedJSON = textToMarkmapJSON(newText);
+
+                                dataScript.textContent = JSON.stringify(parsedJSON);
+
+                                editorDiv.style.display = 'none';
+                                svg.style.display = 'block';
+
+                                // Trigger a re-render
+                                window.renderMindmaps(document);
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Error parsing markmap data", e);
+            }
+        }
+    });
+};
+
+
 document.addEventListener('DOMContentLoaded', () => {
     const editorCanvas = document.getElementById('editor-canvas');
     const toolBtns = document.querySelectorAll('.tool-btn[data-command]');
@@ -12,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearBtn = document.getElementById('clear-btn');
     const imageBtn = document.getElementById('image-btn');
     const imageUpload = document.getElementById('image-upload');
+    const videoBtn = document.getElementById('video-btn');
 
     const htmlSourceBtn = document.getElementById('html-source-btn');
     const htmlSourceEditor = document.getElementById('html-source-editor');
@@ -252,7 +405,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const base64Data = event.target.result;
             // Wrap in a resizable, inline-block span so it can be dragged and resized freely. 
             // Setting contenteditable="false" forces the browser to treat it as a solid draggable block.
-            const imgHTML = `&nbsp;<span class="image-resizer-wrapper" contenteditable="false"><img src="${base64Data}" class="styled-image" alt="Imagen del curso"><span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>&nbsp;`;
+            // Setting contenteditable="false" forces the browser to treat it as a solid draggable block.
+            const imgHTML = `<span class="image-resizer-wrapper align-center" contenteditable="false"><img src="${base64Data}" class="styled-image" alt="Imagen del curso"><span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>`;
 
             editorCanvas.focus();
             if (lastSelection) {
@@ -267,6 +421,49 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset so same file can be chosen again
         e.target.value = '';
     });
+
+    // Video Embed Handling
+    if (videoBtn) {
+        videoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const url = prompt("Introduce la URL del vídeo (YouTube, Vimeo o un archivo mp4 directo):");
+            if (url) {
+                let embedUrl = url;
+
+                if (url.includes('youtube.com/watch?v=')) {
+                    const videoId = url.split('v=')[1].split('&')[0];
+                    embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0`;
+                } else if (url.includes('youtu.be/')) {
+                    const videoId = url.split('youtu.be/')[1].split('?')[0];
+                    embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0`;
+                } else if (url.includes('vimeo.com/')) {
+                    const videoId = url.split('vimeo.com/')[1].split('?')[0];
+                    embedUrl = `https://player.vimeo.com/video/${videoId}`;
+                }
+
+                const isVideoTag = url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.webm');
+
+                let mediaElement = '';
+                if (isVideoTag) {
+                    mediaElement = `<video src="${embedUrl}" class="styled-video" controls style="width: 100%; height: auto; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); display: block;" controlsList="nodownload"></video>`;
+                    const vidHTML = `<span class="image-resizer-wrapper align-center" contenteditable="false" style="width: 60%;">${mediaElement}<span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>`;
+                    editorCanvas.focus();
+                    document.execCommand('insertHTML', false, vidHTML);
+                } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                    // Rawest Possible YouTube Embed to avoid Error 153 - Verbatim as requested
+                    const rawYT = `<iframe width="560" height="315" src="${embedUrl}${embedUrl.includes('?') ? '&' : '?'}controls=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+                    editorCanvas.focus();
+                    document.execCommand('insertHTML', false, rawYT);
+                } else {
+                    // Vimeo or others
+                    mediaElement = `<iframe src="${embedUrl}" class="styled-video" style="width: 100%; aspect-ratio: 16/9; border: none; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); display: block; pointer-events: auto;" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+                    const vidHTML = `<span class="image-resizer-wrapper align-center" contenteditable="false" style="width: 60%;">${mediaElement}<span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span></span>`;
+                    editorCanvas.focus();
+                    document.execCommand('insertHTML', false, vidHTML);
+                }
+            }
+        });
+    }
 
     // Image Resize Drag Logic for custom visible handle
     document.addEventListener('mousedown', (e) => {
@@ -329,6 +526,9 @@ document.addEventListener('DOMContentLoaded', () => {
             formatSelect.disabled = false;
             insertBtn.disabled = false;
             clearBtn.disabled = false;
+
+            // Re-render mindmaps
+            setTimeout(() => window.renderMindmaps(editorCanvas), 50);
         }
     });
 
@@ -376,6 +576,9 @@ document.addEventListener('DOMContentLoaded', () => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recurso de Plantilla Moodle</title>
+    <!-- Markmap -->
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.2.0"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
@@ -544,10 +747,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         /* Image Styling */
         .image-resizer-wrapper { display: inline-block; position: relative; width: 60%; min-width: 150px; max-width: 100%; margin: 10px; vertical-align: top; }
-        .image-resizer-wrapper img.styled-image { width: 100%; height: auto; display: block; cursor: zoom-in; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); transition: transform var(--transition-speed), box-shadow var(--transition-speed); }
+        .image-resizer-wrapper.align-left { float: left; margin: 10px 20px 10px 0; }
+        .image-resizer-wrapper.align-center { display: block; margin: 20px auto; text-align: center; }
+        .image-resizer-wrapper.align-right { float: right; margin: 10px 0 10px 20px; }
+        .image-resizer-wrapper.align-full { display: block; width: 100% !important; margin: 20px 0; }
+        .image-resizer-wrapper img.styled-image, .image-resizer-wrapper video.styled-video { width: 100%; height: auto; display: block; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-md); }
+        .image-resizer-wrapper img.styled-image { cursor: zoom-in; transition: transform var(--transition-speed), box-shadow var(--transition-speed); }
+        .image-resizer-wrapper img.styled-image:hover { transform: scale(1.02); box-shadow: var(--shadow-hover); }
         .image-resizer-wrapper img.styled-image:hover { transform: scale(1.02); box-shadow: var(--shadow-hover); }
         .custom-resizer { display: none !important; }
         
+        /* Mindmap Styling */
+        .mindmap-wrapper { position: relative; width: 100%; margin: 2.5rem 0; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); background: white; overflow: visible; border: 1px solid #e2e8f0; user-select: none; -webkit-user-select: none; }
+        .mindmap { display: block; width: 100%; height: 400px; pointer-events: auto; overflow: visible; }
+        .mindmap-edit-btn { position: absolute; top: 15px; right: 15px; z-index: 10; background: white; border: 1px solid #cbd5e1; color: #475569; padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+        .mindmap-center-btn { position: absolute; bottom: 15px; right: 15px; z-index: 10; background: white; border: 1px solid #cbd5e1; color: #475569; padding: 10px; border-radius: 50%; cursor: pointer; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); transition: all 0.2s; display: flex; align-items: center; justify-content: center; opacity: 0.7; }
+        .mindmap-center-btn:hover { background: #f8fafc; color: var(--primary-color); border-color: var(--primary-color); opacity: 1; transform: scale(1.05); }
+        .mindmap-edit-btn:hover { background: #f8fafc; color: var(--primary-color); border-color: var(--primary-color); }
+        .mindmap-add-btn { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1px; transition: all 0.2s ease; }
+        .mindmap-add-btn-group:hover .mindmap-add-btn { fill: var(--primary-color); stroke: var(--primary-color); }
+        .mindmap-add-icon { fill: #64748b; font-size: 14px; font-weight: bold; font-family: monospace; }
+        .mindmap-add-btn-group:hover .mindmap-add-icon { fill: white; }
+        g.markmap-node text { cursor: pointer; pointer-events: all; }
+        g.markmap-node text:hover { fill: var(--primary-color) !important; }
+        .mindmap-add-btn-group { pointer-events: all; }
+
         /* Modal for Image Zoom */
         .image-zoom-modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.9); justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
         .image-zoom-modal.active { display: flex; opacity: 1; }
@@ -593,6 +817,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => modal.style.display = 'none', 300);
                 }
             });
+
+            // Initialize Mindmaps
+            if (typeof window.markmap !== 'undefined') {
+                const { Markmap } = window.markmap;
+                document.querySelectorAll('.mindmap-wrapper').forEach(wrapper => {
+                    const svg = wrapper.querySelector('svg.mindmap');
+                    const dataScript = wrapper.querySelector('.markmap-data');
+                    if (svg && dataScript) {
+                        try {
+                            const data = JSON.parse(dataScript.textContent);
+                            const mm = Markmap.create(svg, { autoFit: true, initialExpandLevel: 2 }, data);
+                            
+                            const centerBtn = wrapper.querySelector('.mindmap-center-btn');
+                            if (centerBtn) {
+                                centerBtn.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    mm.fit();
+                                });
+                            }
+                        } catch (e) {
+                            console.error("Error parsing markmap data", e);
+                        }
+                    }
+                });
+            }
         });
     </script>
 </body>
@@ -620,6 +870,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Remove custom resizers from output HTML
         const tempCanvas = editorCanvas.cloneNode(true);
         tempCanvas.querySelectorAll('.custom-resizer').forEach(el => el.remove());
+        tempCanvas.querySelectorAll('.mindmap-edit-btn').forEach(el => el.remove());
+        tempCanvas.querySelectorAll('.mindmap-text-editor').forEach(el => el.remove());
+
+        // Clear SVG drawn paths so the initialization script renders them cleanly once
+        tempCanvas.querySelectorAll('svg.mindmap').forEach(svg => svg.innerHTML = '');
 
         // Obtenemos el contenido
         const htmlContent = getTemplateHTML(tempCanvas.innerHTML);
@@ -645,6 +900,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Apply a class to hide interactive WYSIWYG elements (resizers/placeholders)
         const tempCanvas = editorCanvas.cloneNode(true);
         tempCanvas.querySelectorAll('.custom-resizer').forEach(el => el.remove());
+        tempCanvas.querySelectorAll('.mindmap-edit-btn').forEach(el => el.remove());
+        tempCanvas.querySelectorAll('.mindmap-text-editor').forEach(el => el.remove());
 
         // Remove empty placeholders
         tempCanvas.querySelectorAll('[contenteditable="false"]').forEach(el => el.removeAttribute('contenteditable'));
@@ -719,7 +976,33 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         'code': `<pre><code>// Escribe tu código aquí...</code></pre><p><br></p>`,
         'divider': `<hr><p><br></p>`,
-        'button': `<a href="#" class="btn-action">Botón de Acción<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a><p><br></p>`
+        'button': `<a href="#" class="btn-action">Botón de Acción<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></a><p><br></p>`,
+        'mindmap': () => {
+            const id = 'mindmap-' + Math.random().toString(36).substr(2, 9);
+            return `
+        <div class="mindmap-wrapper" contenteditable="false">
+            <button class="mindmap-edit-btn" contenteditable="false"><i class="fas fa-edit"></i> Editar Mapa Mental</button>
+            <button class="mindmap-center-btn" contenteditable="false" title="Centrar Mapa">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="css-i6dzq1"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+            <svg id="${id}" class="mindmap"></svg>
+            <pre class="markmap-data" style="display: none;">
+                {
+                    "t": "root", "d": 0, "v": "Concepto Principal",
+                    "c": [
+                        { "t": "heading", "d": 1, "v": "Idea 1", "c": [
+                            { "t": "heading", "d": 2, "v": "Detalle A" },
+                            { "t": "heading", "d": 2, "v": "Detalle B" }
+                        ]},
+                        { "t": "heading", "d": 1, "v": "Idea 2", "c": [
+                            { "t": "heading", "d": 2, "v": "Detalle 2A" },
+                            { "t": "heading", "d": 2, "v": "Detalle 2B" }
+                        ]}
+                    ]
+                }
+            </pre>
+        </div><p><br></p>`;
+        }
     };
 
     const insertElement = () => {
@@ -735,6 +1018,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         editorCanvas.focus();
         document.execCommand('insertHTML', false, template);
+
+        if (value === 'mindmap') {
+            setTimeout(() => window.renderMindmaps(editorCanvas), 50);
+        }
 
         insertSelect.value = '';
     };
