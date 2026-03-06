@@ -161,7 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportMdBtn = document.getElementById('export-md-btn');
     const formatSelect = document.getElementById('format-block');
     const insertSelect = document.getElementById('insert-block');
-    const insertBtn = document.getElementById('insert-btn');
     const markBtn = document.getElementById('mark-btn');
     const clearBtn = document.getElementById('clear-btn');
     const imageBtn = document.getElementById('image-btn');
@@ -179,24 +178,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- NEW LOGIC: Exit components with Escape or Click ---
     editorCanvas.addEventListener('keydown', (e) => {
-        // Fix for Enter key inside <pre> / <code> blocks creating new blocks
+        // Fix for Enter key inside <pre> / <code> / <blockquote> blocks creating new blocks
         if (e.key === 'Enter') {
             const selection = window.getSelection();
             if (selection.rangeCount) {
                 let node = selection.anchorNode;
-                let insideCodeBlock = false;
+                let activeBlock = null;
 
                 while (node && node !== editorCanvas) {
                     if (node.tagName === 'PRE' || node.tagName === 'CODE') {
-                        insideCodeBlock = true;
+                        activeBlock = 'CODE';
+                        break;
+                    }
+                    if (node.tagName === 'BLOCKQUOTE') {
+                        activeBlock = 'QUOTE';
                         break;
                     }
                     node = node.parentNode;
                 }
 
-                if (insideCodeBlock && !e.shiftKey) {
+                if (activeBlock) {
                     e.preventDefault();
-                    document.execCommand('insertText', false, '\n');
+                    // Utilizamos insertLineBreak (el equivalente a Shift+Enter)
+                    // que nativamente evita partir el bloque, conservando
+                    // fuentes y estilos internos sin romper el <pre> o <blockquote>
+                    document.execCommand('insertLineBreak');
                     return;
                 }
             }
@@ -592,7 +598,6 @@ document.addEventListener('DOMContentLoaded', () => {
             toolBtns.forEach(btn => btn.disabled = true);
             insertSelect.disabled = true;
             formatSelect.disabled = true;
-            insertBtn.disabled = true;
             clearBtn.disabled = true;
         } else {
             // Turning off Source Mode
@@ -606,7 +611,6 @@ document.addEventListener('DOMContentLoaded', () => {
             toolBtns.forEach(btn => btn.disabled = false);
             insertSelect.disabled = false;
             formatSelect.disabled = false;
-            insertBtn.disabled = false;
             clearBtn.disabled = false;
 
             // Re-render mindmaps
@@ -695,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
             font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif;
             line-height: 1.7;
             text-align: left;
-            counter-reset: h2counter;
+            counter-reset: h1counter h2counter h3counter h4counter;
             margin: 0 auto;
             padding: 40px 15px;
             box-sizing: border-box;
@@ -710,13 +714,14 @@ document.addEventListener('DOMContentLoaded', () => {
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
         h1, h2, h3, h4, h5, h6 { color: var(--text-color); padding: 0; margin-left: 0; box-sizing: border-box; width: 100%; font-weight: 700; letter-spacing: -0.02em; }
-        h1 { background: linear-gradient(135deg, #cdffd8 0%, #93b9ff 100%); padding: var(--heading-padding); margin: 0 0 2.5rem 0; font-size: clamp(2rem, 5vw, 2.5rem); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); color: #2c3138; font-weight: 800; display: flex; align-items: center; gap: 15px; }
-        h2 { background: linear-gradient(135deg, rgba(205, 255, 216, 0.6) 0%, rgba(147, 185, 255, 0.6) 100%); padding: var(--heading-padding); border-radius: var(--border-radius-md); margin: 3rem 0 1.5rem 0; font-size: clamp(1.4rem, 4vw, 1.8rem); counter-reset: h3counter; border-left: 5px solid var(--primary-color); color: #2c3138; transition: transform var(--transition-speed); }
+        h1 { background: linear-gradient(135deg, #cdffd8 0%, #93b9ff 100%); padding: var(--heading-padding); margin: 0 0 2.5rem 0; font-size: clamp(2rem, 5vw, 2.5rem); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); color: #2c3138; font-weight: 800; display: flex; align-items: center; gap: 15px; counter-reset: h2counter h3counter h4counter; }
+        h2 { background: linear-gradient(135deg, rgba(205, 255, 216, 0.6) 0%, rgba(147, 185, 255, 0.6) 100%); padding: var(--heading-padding); border-radius: var(--border-radius-md); margin: 3rem 0 1.5rem 0; font-size: clamp(1.4rem, 4vw, 1.8rem); counter-reset: h3counter h4counter; border-left: 5px solid var(--primary-color); color: #2c3138; transition: transform var(--transition-speed); }
         h2:hover { transform: translateX(5px); }
         h3 { color: var(--secondary-color); margin: 2em 0 1em 0; font-size: clamp(1.2rem, 3.5vw, 1.5rem); counter-reset: h4counter; padding-left: 15px; border-left: 3px solid var(--block-bg-color); }
         h4 { color: var(--text-color); margin: 1.5em 0 0.8em 0; font-size: clamp(1.1rem, 3vw, 1.3rem); counter-reset: h5counter; opacity: 0.9; font-weight: 600; }
-        h2:before { counter-increment: h2counter; content: counter(h2counter) ".\\0000a0\\0000a0"; color: var(--primary-color); font-weight: 900; }
-        h3:before { counter-increment: h3counter; content: counter(h2counter) "." counter(h3counter) ".\\0000a0\\0000a0"; color: var(--primary-color); opacity: 0.7; }
+        h1:before { counter-increment: h1counter; content: counter(h1counter) ".\\0000a0\\0000a0"; color: var(--primary-color); font-weight: 900; }
+        h2:before { counter-increment: h2counter; content: counter(h1counter) "." counter(h2counter) ".\\0000a0\\0000a0"; color: var(--primary-color); font-weight: 900; }
+        h3:before { counter-increment: h3counter; content: counter(h1counter) "." counter(h2counter) "." counter(h3counter) ".\\0000a0\\0000a0"; color: var(--primary-color); opacity: 0.7; }
 
         a { color: var(--link-color); text-decoration: none; position: relative; font-weight: 500; transition: color 0.2s ease; }
         p a::after, li a::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -2px; left: 0; background-color: var(--link-color); transform-origin: bottom right; transition: transform 0.3s cubic-bezier(0.86, 0, 0.07, 1); }
@@ -1005,6 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tempCanvas.querySelectorAll('.custom-resizer').forEach(el => el.remove());
         tempCanvas.querySelectorAll('.mindmap-edit-btn').forEach(el => el.remove());
         tempCanvas.querySelectorAll('.mindmap-text-editor').forEach(el => el.remove());
+        tempCanvas.querySelectorAll('.table-controls').forEach(el => el.remove());
 
         // Clear SVG drawn paths so the initialization script renders them cleanly once
         tempCanvas.querySelectorAll('svg.mindmap').forEach(svg => svg.innerHTML = '');
@@ -1049,6 +1055,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tempCanvas.querySelectorAll('.custom-resizer').forEach(el => el.remove());
         tempCanvas.querySelectorAll('.mindmap-edit-btn').forEach(el => el.remove());
         tempCanvas.querySelectorAll('.mindmap-text-editor').forEach(el => el.remove());
+        tempCanvas.querySelectorAll('.table-controls').forEach(el => el.remove());
 
         // Ensure all accordions (details) are closed in the export
         tempCanvas.querySelectorAll('details').forEach(details => details.removeAttribute('open'));
@@ -1109,9 +1116,15 @@ document.addEventListener('DOMContentLoaded', () => {
         </div><p><br></p>`,
         'table': `
         <div class="table-container">
+            <div class="table-controls" contenteditable="false">
+                <button class="table-action-btn add-row" title="Añadir Fila Abajo"><i class="fas fa-plus"></i> Fila</button>
+                <button class="table-action-btn add-col" title="Añadir Columna Derecha"><i class="fas fa-plus"></i> Col</button>
+                <button class="table-action-btn del-row" title="Eliminar Fila Actual"><i class="fas fa-minus"></i> Fila</button>
+                <button class="table-action-btn del-col" title="Eliminar Columna Actual"><i class="fas fa-minus"></i> Col</button>
+            </div>
             <table>
                 <thead>
-                    <tr><th>Columna A</th><th>Columna B</th></tr>
+                    <tr><th>Titular 1</th><th>Titular 2</th></tr>
                 </thead>
                 <tbody>
                     <tr><td>Dato 1</td><td>Dato 2</td></tr>
@@ -1169,28 +1182,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div><p><br></p>`
     };
 
-    const insertElement = () => {
-        const value = insertSelect.value;
-        if (!value) return;
-
-        let template = blockTemplates[value];
-        if (!template) return;
-
-        if (typeof template === 'function') {
-            template = template();
-        }
-
-        editorCanvas.focus();
-        document.execCommand('insertHTML', false, template);
-
-        if (value === 'mindmap') {
-            setTimeout(() => window.renderMindmaps(editorCanvas), 50);
-        }
-
-        insertSelect.value = '';
-    };
-
-    // TOC / Index Generator
     const generateTOC = (container) => {
         const headers = container.querySelectorAll('h1, h2, h3, h4');
         if (headers.length === 0) return '<p><i>No se han encontrado títulos (T1-T4) para generar el índice.</i></p>';
@@ -1216,6 +1207,130 @@ document.addEventListener('DOMContentLoaded', () => {
         return tocHTML;
     };
 
-    insertBtn.addEventListener('click', insertElement);
+    const insertElement = () => {
+        const value = insertSelect.value;
+        if (!value) return;
+
+        let template = blockTemplates[value];
+        if (!template) return;
+
+        if (typeof template === 'function') {
+            template = template();
+        }
+
+        // Logic to wrap selected text into the component placeholder
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+            const selectedText = selection.toString().trim();
+
+            if (selectedText) {
+                // Try to substitute the placeholder text with the user selection
+                if (value.startsWith('callout-')) {
+                    template = template.replace(/<p>.*?<\/p>/, `<p>${selectedText}</p>`);
+                } else if (value === 'details') {
+                    template = template.replace(/<p>Contenido interno del desplegable...<\/p>/, `<p>${selectedText}</p>`);
+                } else if (value === 'code') {
+                    template = template.replace(/\/\/ Escribe tu código aquí.../, selectedText);
+                } else if (value === 'button') {
+                    template = template.replace(/Botón de Acción/, selectedText);
+                }
+            }
+        }
+
+        editorCanvas.focus();
+        document.execCommand('insertHTML', false, template);
+
+        if (value === 'mindmap') {
+            setTimeout(() => window.renderMindmaps(editorCanvas), 50);
+        }
+
+        insertSelect.value = '';
+    };
+
     insertSelect.addEventListener('change', insertElement);
+
+    // Table Manipulation Controls Logic
+    editorCanvas.addEventListener('click', (e) => {
+        const target = e.target;
+
+        // Handle clicks on table controls
+        if (target.closest('.table-action-btn')) {
+            e.preventDefault();
+            const btn = target.closest('.table-action-btn');
+            const tableContainer = btn.closest('.table-container');
+            const table = tableContainer.querySelector('table');
+
+            // Try to find if a cell is currently selected/active inside this table
+            let activeCell = null;
+            let activeRow = null;
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                let node = selection.anchorNode;
+                while (node && node !== editorCanvas) {
+                    if (node.tagName === 'TD' || node.tagName === 'TH') {
+                        activeCell = node;
+                        activeRow = activeCell.parentElement;
+                        break;
+                    }
+                    node = node.parentNode;
+                }
+            }
+
+            // Fallback to the last row/cell if no selection is made
+            if (!activeRow) activeRow = table.querySelector('tbody tr:last-child');
+            if (activeRow && !activeCell) activeCell = activeRow.querySelector('td:last-child');
+            if (!activeCell || !activeRow) return;
+
+            const isHeader = activeCell.tagName === 'TH';
+            const cellIndex = Array.from(activeRow.children).indexOf(activeCell);
+
+            if (btn.classList.contains('add-row')) {
+                const newRow = activeRow.cloneNode(true);
+                // Clear the content of the cloned row
+                newRow.querySelectorAll('td, th').forEach(td => td.textContent = 'Dato');
+
+                if (isHeader) {
+                    table.querySelector('tbody').insertBefore(newRow, table.querySelector('tbody').firstChild);
+                } else {
+                    activeRow.parentNode.insertBefore(newRow, activeRow.nextSibling);
+                }
+            }
+            else if (btn.classList.contains('add-col')) {
+                // Add cell to every row
+                table.querySelectorAll('tr').forEach(row => {
+                    const isRowHeader = row.querySelector('th') !== null;
+                    const newCell = document.createElement(isRowHeader ? 'th' : 'td');
+                    newCell.textContent = isRowHeader ? 'Titular' : 'Dato';
+
+                    const referenceCell = row.children[cellIndex];
+                    if (referenceCell) {
+                        row.insertBefore(newCell, referenceCell.nextSibling);
+                    } else {
+                        row.appendChild(newCell);
+                    }
+                });
+            }
+            else if (btn.classList.contains('del-row')) {
+                // Prevent deleting the very last data row or the header
+                if (isHeader) return;
+                if (table.querySelectorAll('tbody tr').length > 1) {
+                    activeRow.remove();
+                } else {
+                    alert('No se puede eliminar la última fila.');
+                }
+            }
+            else if (btn.classList.contains('del-col')) {
+                // Prevent deleting the last column
+                if (activeRow.children.length > 1) {
+                    table.querySelectorAll('tr').forEach(row => {
+                        if (row.children[cellIndex]) {
+                            row.children[cellIndex].remove();
+                        }
+                    });
+                } else {
+                    alert('No se puede eliminar la última columna.');
+                }
+            }
+        }
+    });
 });
