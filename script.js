@@ -1292,6 +1292,13 @@ window.toggleMoodleIframeFullscreen = function(btn) {
             const embedCancelBtn = document.getElementById('embed-cancel-btn');
             const embedConfirmBtn = document.getElementById('embed-confirm-btn');
 
+            editorCanvas.focus();
+            const sel = window.getSelection();
+            let savedRange = null;
+            if (sel.rangeCount > 0) {
+                savedRange = sel.getRangeAt(0).cloneRange();
+            }
+
             embedTextarea.value = '';
             embedModal.style.display = 'flex';
 
@@ -1360,6 +1367,11 @@ window.toggleMoodleIframeFullscreen = function(btn) {
                 }
 
                 editorCanvas.focus();
+                if (savedRange) {
+                    const currentSel = window.getSelection();
+                    currentSel.removeAllRanges();
+                    currentSel.addRange(savedRange);
+                }
                 document.execCommand('insertHTML', false, embedTemplate);
                 cleanup();
             };
