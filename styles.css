@@ -253,7 +253,6 @@ html {
     font-family: var(--current-font, 'Poppins'), 'Segoe UI', system-ui, sans-serif;
     line-height: 1.7;
     text-align: left;
-    counter-reset: h1counter h2counter h3counter h4counter;
     position: relative;
     outline: none;
 }
@@ -290,7 +289,6 @@ html {
     display: flex;
     align-items: center;
     gap: 15px;
-    counter-reset: h2counter h3counter h4counter;
 }
 
 .editor-canvas h2 {
@@ -299,7 +297,6 @@ html {
     border-radius: var(--border-radius-md);
     margin: 3rem 0 1.5rem 0;
     font-size: clamp(1.4rem, 4vw, 1.8rem);
-    counter-reset: h3counter h4counter;
     border-left: 5px solid var(--primary-color);
     color: #2c3138;
     transition: transform var(--transition-speed);
@@ -309,7 +306,6 @@ html {
     color: var(--secondary-color);
     margin: 2em 0 1em 0;
     font-size: clamp(1.2rem, 3.5vw, 1.5rem);
-    counter-reset: h4counter;
     padding-left: 15px;
     border-left: 3px solid var(--block-bg-color);
 }
@@ -318,27 +314,23 @@ html {
     color: var(--text-color);
     margin: 1.5em 0 0.8em 0;
     font-size: clamp(1.1rem, 3vw, 1.3rem);
-    counter-reset: h5counter;
     opacity: 0.9;
     font-weight: 600;
 }
 
 .editor-canvas h1:before {
-    counter-increment: h1counter;
     content: counter(h1counter) ".\0000a0\0000a0";
     color: var(--primary-color);
     font-weight: 900;
 }
 
 .editor-canvas h2:before {
-    counter-increment: h2counter;
     content: counter(h1counter) "." counter(h2counter) ".\0000a0\0000a0";
     color: var(--primary-color);
     font-weight: 900;
 }
 
 .editor-canvas h3:before {
-    counter-increment: h3counter;
     content: counter(h1counter) "." counter(h2counter) "." counter(h3counter) ".\0000a0\0000a0";
     color: var(--primary-color);
     opacity: 0.7;
