@@ -160,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportHtmlBtn = document.getElementById('export-html-btn');
     const exportMdBtn = document.getElementById('export-md-btn');
     const formatSelect = document.getElementById('format-block');
-    const fontFamilySelect = document.getElementById('font-family-select');
     const insertSelect = document.getElementById('insert-block');
     const markBtn = document.getElementById('mark-btn');
     const clearBtn = document.getElementById('clear-btn');
@@ -179,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- NEW LOGIC: Exit components with Escape or Click ---
     editorCanvas.addEventListener('keydown', (e) => {
-        // Fix for Enter key inside <pre> / <code> / <blockquote> blocks creating new blocks
+        // Fix for Enter key inside <pre> / <code> / blockquote blocks creating new blocks
         if (e.key === 'Enter') {
             const selection = window.getSelection();
             if (selection.rangeCount) {
@@ -195,10 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         activeBlock = 'QUOTE';
                         break;
                     }
-                    if (node.tagName === 'SUMMARY') {
-                        activeBlock = 'SUMMARY';
-                        break;
-                    }
                     node = node.parentNode;
                 }
 
@@ -206,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.preventDefault();
                     // Utilizamos insertLineBreak (el equivalente a Shift+Enter)
                     // que nativamente evita partir el bloque, conservando
-                    // fuentes y estilos internos sin romper el <pre>, <blockquote> o <summary>
+                    // fuentes y estilos internos sin romper el <pre> o <blockquote>
                     document.execCommand('insertLineBreak');
                     return;
                 }
@@ -272,27 +267,61 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Fix for <details> (accordion) missing native toggle click in Chrome's contenteditable
-        const summary = e.target.closest('summary');
-        if (summary) {
-            const details = summary.parentElement;
-            if (details && details.tagName === 'DETAILS') {
-                const wasOpen = details.open;
-                requestAnimationFrame(() => {
-                    // Si el navegador no lo ha cambiado por sí solo (bug de contenteditable)
-                    if (details.open === wasOpen) {
-                        const selection = window.getSelection();
-                        // No alternar si el usuario está seleccionando texto activamente
-                        if (selection && !selection.isCollapsed) return;
+        // Only act if clicking directly on the canvas background
+        if (e.target === editorCanvas) {
+            // Check if there's a valid text selection (e.g. from click and drag)
+            const selection = window.getSelection();
+            if (selection && !selection.isCollapsed) {
+                return; // Do nothing if the user highlighted text across the canvas
+            }
 
-                        details.open = !wasOpen;
-                    }
-                });
+            let targetNode = null;
+            let insertBeforeNode = null;
+
+            for (let i = 0; i < editorCanvas.children.length; i++) {
+                const child = editorCanvas.children[i];
+                const rect = child.getBoundingClientRect();
+
+                // If the click is above the middle of the child, consider it "before" this child
+                if (e.clientY < rect.top + (rect.height / 2)) {
+                    insertBeforeNode = child;
+                    break;
+                }
+            }
+
+            const p = document.createElement('p');
+            p.innerHTML = '<br>';
+            const checkEmptyP = (el) => el && el.tagName === 'P' && (el.innerHTML.trim() === '<br>' || el.innerHTML.trim() === '' || (el.textContent.trim() === '' && el.children.length === 0));
+
+            if (insertBeforeNode) {
+                const prev = insertBeforeNode.previousElementSibling;
+                if (!checkEmptyP(prev)) {
+                    editorCanvas.insertBefore(p, insertBeforeNode);
+                    targetNode = p;
+                } else {
+                    targetNode = prev;
+                }
+            } else {
+                const last = editorCanvas.lastElementChild;
+                if (!checkEmptyP(last)) {
+                    editorCanvas.appendChild(p);
+                    targetNode = p;
+                } else {
+                    targetNode = last;
+                }
+            }
+
+            if (targetNode) {
+                const range = document.createRange();
+                range.setStart(targetNode, 0);
+                range.collapse(true);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
             }
         }
     });
-
-    // Native contenteditable manages caret positioning safely.
+    // --- END NEW LOGIC ---
 
     // Smart Paste handling (adapt copied styles to our editor)
     editorCanvas.addEventListener('paste', (e) => {
@@ -366,21 +395,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-
-    // Change Font Family
-    if (fontFamilySelect) {
-        fontFamilySelect.addEventListener('change', (e) => {
-            const fontName = e.target.value;
-            // The quote wrapping is needed if the font has spaces, but we use var so we can do it with or without. 
-            // Better without double quotes inside the var to avoid syntax errors if not handled right in CSS,
-            // or we add quotes directly in string interpolation if needed.
-            // Using a standard single quoted string inside the CSS custom property works flawlessly.
-            document.documentElement.style.setProperty('--current-font', `'${fontName}'`);
-        });
-
-        // Initialize default
-        document.documentElement.style.setProperty('--current-font', "'Poppins'");
-    }
 
     // Basic Formatting Commands
     toolBtns.forEach(btn => {
@@ -642,17 +656,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Template HTML structure for Download/Export
-    const getTemplateHTML = (content, fontName = 'Poppins') => `<!DOCTYPE html>
+    const getTemplateHTML = (content) => `<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recurso de Plantilla Moodle</title>
     <!-- Markmap -->
-    <script src="https://d3js.org/d3.v6.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.2.0"></script>
+    <script src="https://d3js.org/d3.v6.min.js"><\/script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.2.0"><\/script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
         :root {
             --text-color: #40464f;
@@ -682,10 +696,9 @@ document.addEventListener('DOMContentLoaded', () => {
         body {
             color: var(--text-color);
             background-color: var(--bg-color);
-            font-family: '${fontName}', 'Segoe UI', system-ui, sans-serif;
+            font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif;
             line-height: 1.7;
             text-align: left;
-            counter-reset: h1counter h2counter h3counter h4counter;
             margin: 0 auto;
             padding: 40px 15px;
             box-sizing: border-box;
@@ -700,14 +713,13 @@ document.addEventListener('DOMContentLoaded', () => {
         @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
         h1, h2, h3, h4, h5, h6 { color: var(--text-color); padding: 0; margin-left: 0; box-sizing: border-box; width: 100%; font-weight: 700; letter-spacing: -0.02em; }
-        h1 { background: linear-gradient(135deg, #cdffd8 0%, #93b9ff 100%); padding: var(--heading-padding); margin: 0 0 2.5rem 0; font-size: clamp(2rem, 5vw, 2.5rem); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); color: #2c3138; font-weight: 800; display: flex; align-items: center; gap: 15px; counter-reset: h2counter h3counter h4counter; }
-        h2 { background: linear-gradient(135deg, rgba(205, 255, 216, 0.6) 0%, rgba(147, 185, 255, 0.6) 100%); padding: var(--heading-padding); border-radius: var(--border-radius-md); margin: 3rem 0 1.5rem 0; font-size: clamp(1.4rem, 4vw, 1.8rem); counter-reset: h3counter h4counter; border-left: 5px solid var(--primary-color); color: #2c3138; transition: transform var(--transition-speed); }
+        
+        /* Contadores automáticos eliminados de las plantillas */
+        h1 { background: linear-gradient(135deg, #cdffd8 0%, #93b9ff 100%); padding: var(--heading-padding); margin: 0 0 2.5rem 0; font-size: clamp(2rem, 5vw, 2.5rem); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); color: #2c3138; font-weight: 800; display: flex; align-items: center; gap: 15px; }
+        h2 { background: linear-gradient(135deg, rgba(205, 255, 216, 0.6) 0%, rgba(147, 185, 255, 0.6) 100%); padding: var(--heading-padding); border-radius: var(--border-radius-md); margin: 3rem 0 1.5rem 0; font-size: clamp(1.4rem, 4vw, 1.8rem); border-left: 5px solid var(--primary-color); color: #2c3138; transition: transform var(--transition-speed); }
         h2:hover { transform: translateX(5px); }
-        h3 { color: var(--secondary-color); margin: 2em 0 1em 0; font-size: clamp(1.2rem, 3.5vw, 1.5rem); counter-reset: h4counter; padding-left: 15px; border-left: 3px solid var(--block-bg-color); }
-        h4 { color: var(--text-color); margin: 1.5em 0 0.8em 0; font-size: clamp(1.1rem, 3vw, 1.3rem); counter-reset: h5counter; opacity: 0.9; font-weight: 600; }
-        h1:before { counter-increment: h1counter; content: counter(h1counter) ".\\0000a0\\0000a0"; color: var(--primary-color); font-weight: 900; }
-        h2:before { counter-increment: h2counter; content: counter(h1counter) "." counter(h2counter) ".\\0000a0\\0000a0"; color: var(--primary-color); font-weight: 900; }
-        h3:before { counter-increment: h3counter; content: counter(h1counter) "." counter(h2counter) "." counter(h3counter) ".\\0000a0\\0000a0"; color: var(--primary-color); opacity: 0.7; }
+        h3 { color: var(--secondary-color); margin: 2em 0 1em 0; font-size: clamp(1.2rem, 3.5vw, 1.5rem); padding-left: 15px; border-left: 3px solid var(--block-bg-color); }
+        h4 { color: var(--text-color); margin: 1.5em 0 0.8em 0; font-size: clamp(1.1rem, 3vw, 1.3rem); opacity: 0.9; font-weight: 600; }
 
         a { color: var(--link-color); text-decoration: none; position: relative; font-weight: 500; transition: color 0.2s ease; }
         p a::after, li a::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -2px; left: 0; background-color: var(--link-color); transform-origin: bottom right; transition: transform 0.3s cubic-bezier(0.86, 0, 0.07, 1); }
@@ -735,15 +747,6 @@ document.addEventListener('DOMContentLoaded', () => {
         blockquote::before { content: "❝"; position: absolute; left: 15px; top: -10px; font-size: 4rem; color: var(--primary-color); opacity: 0.2; line-height: 1; }
         blockquote:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
         hr { margin: 3rem 0; border: 0; height: 3px; background: linear-gradient(to right, transparent, var(--block-bg-color), var(--primary-color), transparent); opacity: 0.5; }
-        
-        /* Fullscreen Iframe */
-        .moodle-iframe-wrapper { position: relative; }
-        .moodle-iframe-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999 !important; background: rgba(0, 0, 0, 0.9) !important; margin: 0 !important; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
-        .moodle-iframe-fullscreen > .iframe-container { padding-bottom: 0 !important; height: 90vh !important; width: 90vw !important; max-width: 1400px; border-radius: 12px !important; margin: 0 !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important; }
-        .moodle-iframe-fullscreen .moodle-iframe-expand-btn { top: 20px !important; right: 20px !important; padding: 12px !important; border-radius: 50% !important; background: rgba(255, 255, 255, 0.2) !important; }
-        .moodle-iframe-fullscreen .moodle-iframe-expand-btn:hover { background: rgba(255, 255, 255, 0.3) !important; }
-        .moodle-iframe-fullscreen .icon-expand { display: none !important; }
-        .moodle-iframe-fullscreen .icon-close { display: block !important; }
 
         .table-container { overflow-x: auto; margin: 2rem 0; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); }
         table { width: 100%; border-collapse: collapse; background: white; text-align: left; }
@@ -870,44 +873,6 @@ document.addEventListener('DOMContentLoaded', () => {
             scroll-margin-top: 100px; /* Space for the header if needed */
         }
     </style>
-<script>
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('.moodle-iframe-expand-btn');
-    if (btn) {
-        e.preventDefault();
-        e.stopPropagation();
-        if(typeof window.toggleMoodleIframeFullscreen === 'function') {
-            window.toggleMoodleIframeFullscreen(btn);
-        }
-    }
-});
-
-window.toggleMoodleIframeFullscreen = function(btn) {
-    var wrapper = btn.closest('.moodle-iframe-wrapper');
-    if(!wrapper) return;
-    
-    if (!wrapper.classList.contains('moodle-iframe-fullscreen')) {
-        var ph = document.createElement('div');
-        ph.className = 'iframe-placeholder-hidden';
-        ph.style.display = 'none';
-        ph.id = 'ph-' + Math.random().toString(36).substr(2, 9);
-        wrapper.setAttribute('data-ph-id', ph.id);
-        wrapper.parentNode.insertBefore(ph, wrapper);
-        document.body.appendChild(wrapper);
-        wrapper.classList.add('moodle-iframe-fullscreen');
-        document.body.style.overflow = 'hidden';
-    } else {
-        var phId = wrapper.getAttribute('data-ph-id');
-        var ph = document.getElementById(phId);
-        if (ph) {
-            ph.parentNode.insertBefore(wrapper, ph);
-            ph.parentNode.removeChild(ph);
-        }
-        wrapper.classList.remove('moodle-iframe-fullscreen');
-        document.body.style.overflow = '';
-    }
-};
-</script>
 </head>
 <body>
     <div class="fade-in-up">
@@ -972,7 +937,7 @@ window.toggleMoodleIframeFullscreen = function(btn) {
                 });
             }
         });
-    </script>
+    <\/script>
 </body>
 </html>`;
 
@@ -1052,9 +1017,8 @@ window.toggleMoodleIframeFullscreen = function(btn) {
         tempCanvas.querySelectorAll('details').forEach(details => details.removeAttribute('open'));
 
         // Generate Index if placeholder exists
+        const tocHTML = generateTOC(tempCanvas);
         tempCanvas.querySelectorAll('.index-placeholder').forEach(placeholder => {
-            const lang = placeholder.getAttribute('data-lang') || 'es';
-            const tocHTML = generateTOC(tempCanvas, lang);
             placeholder.outerHTML = tocHTML;
         });
 
@@ -1064,8 +1028,7 @@ window.toggleMoodleIframeFullscreen = function(btn) {
         // Convert [#anchor] or [ #anchor ] to <span id="anchor" class="anchor-point"></span>
         innerHTML = innerHTML.replace(/\[\s*#\s*([^\]\s]+)\s*\]/g, '<span id="$1" class="anchor-point"></span>');
 
-        const selectedFont = fontFamilySelect ? fontFamilySelect.value : 'Poppins';
-        const htmlContent = getTemplateHTML(innerHTML, selectedFont);
+        const htmlContent = getTemplateHTML(innerHTML);
 
         // Creamos y descargamos el archivo
         const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
@@ -1096,9 +1059,8 @@ window.toggleMoodleIframeFullscreen = function(btn) {
         tempCanvas.querySelectorAll('details').forEach(details => details.removeAttribute('open'));
 
         // Generate Index if placeholder exists
+        const tocHTML = generateTOC(tempCanvas);
         tempCanvas.querySelectorAll('.index-placeholder').forEach(placeholder => {
-            const lang = placeholder.getAttribute('data-lang') || 'es';
-            const tocHTML = generateTOC(tempCanvas, lang);
             placeholder.outerHTML = tocHTML;
         });
 
@@ -1212,25 +1174,19 @@ window.toggleMoodleIframeFullscreen = function(btn) {
             </pre>
         </div><p><br></p>`;
         },
-        'index-es': `<div class="index-placeholder" contenteditable="false" data-lang="es">[📖 Índice de contenidos (se generará al exportar)]</div><p><br></p>`,
-        'index-va': `<div class="index-placeholder" contenteditable="false" data-lang="va">[📖 Índex de continguts (es generarà a l'exportar)]</div><p><br></p>`,
-        'index-en': `<div class="index-placeholder" contenteditable="false" data-lang="en">[📖 Table of contents (will be generated on export)]</div><p><br></p>`,
+        'index': `<div class="index-placeholder" contenteditable="false">
+            <div class="index-header">Índice de Contenidos</div>
+            <div class="index-body">Este espacio se convertirá automáticamente en un índice con hipervínculos al exportar.</div>
+        </div><p><br></p>`
     };
 
-    const generateTOC = (container, lang = 'es') => {
+    const generateTOC = (container) => {
         const headers = container.querySelectorAll('h1, h2, h3, h4');
         if (headers.length === 0) return '<p><i>No se han encontrado títulos (T1-T4) para generar el índice.</i></p>';
 
-        let title = '📖 Índice de contenidos';
-        if (lang === 'va') title = '📖 Índex de continguts';
-        if (lang === 'en') title = '📖 Table of contents';
-
-        let tocHTML = `<details class="moodle-index"><summary>${title}</summary><div class="details-content"><ul style="list-style: none; padding-left: 0; margin: 0;">`;
-        let counts = { h1: 0, h2: 0, h3: 0, h4: 0 };
+        let tocHTML = '<div class="moodle-index"><ul>';
 
         headers.forEach((header, index) => {
-            const level = header.tagName.toLowerCase();
-
             // Generate ID if missing
             if (!header.id || header.id.startsWith('toc-')) {
                 const slug = header.textContent.toLowerCase()
@@ -1240,43 +1196,12 @@ window.toggleMoodleIframeFullscreen = function(btn) {
                 header.id = `toc-${slug}-${index}`;
             }
 
-            // Update counters
-            if (level === 'h1') {
-                counts.h1++;
-                counts.h2 = 0;
-                counts.h3 = 0;
-                counts.h4 = 0;
-                return; // Skip rendering H1
-            } else if (level === 'h2') {
-                counts.h2++;
-                counts.h3 = 0;
-                counts.h4 = 0;
-            } else if (level === 'h3') {
-                counts.h3++;
-                counts.h4 = 0;
-            } else if (level === 'h4') {
-                counts.h4++;
-            }
-
-            let indent = '0';
-
-            if (level === 'h2') {
-                indent = '0px';
-            } else if (level === 'h3') {
-                indent = '20px';
-            } else if (level === 'h4') {
-                indent = '40px';
-            }
-
+            const level = header.tagName.toLowerCase();
             const text = header.textContent.trim();
-            tocHTML += `<li class="moodle-index-item moodle-index-${level}" style="margin-left: ${indent}; margin-bottom: 8px;">
-                <a href="#${header.id}" style="text-decoration: none; color: var(--text-color); font-weight: ${level === 'h2' ? '600' : '400'}; transition: color 0.2s;">
-                    ${text}
-                </a>
-            </li>`;
+            tocHTML += `<li class="moodle-index-item moodle-index-${level}"><a href="#${header.id}">${text}</a></li>`;
         });
 
-        tocHTML += '</ul></div></details>';
+        tocHTML += '</ul></div>';
         return tocHTML;
     };
 
@@ -1284,108 +1209,11 @@ window.toggleMoodleIframeFullscreen = function(btn) {
         const value = insertSelect.value;
         if (!value) return;
 
-        let template = '';
+        let template = blockTemplates[value];
+        if (!template) return;
 
-        if (value === 'iframe') {
-            const embedModal = document.getElementById('embed-modal');
-            const embedTextarea = document.getElementById('embed-textarea');
-            const embedCancelBtn = document.getElementById('embed-cancel-btn');
-            const embedConfirmBtn = document.getElementById('embed-confirm-btn');
-
-            editorCanvas.focus();
-            const sel = window.getSelection();
-            let savedRange = null;
-            if (sel.rangeCount > 0) {
-                savedRange = sel.getRangeAt(0).cloneRange();
-            }
-
-            embedTextarea.value = '';
-            embedModal.style.display = 'flex';
-
-            const cleanup = () => {
-                embedModal.style.display = 'none';
-                embedConfirmBtn.removeEventListener('click', confirmHandler);
-                embedCancelBtn.removeEventListener('click', cancelHandler);
-                insertSelect.value = '';
-            };
-
-            const cancelHandler = () => cleanup();
-
-            const confirmHandler = () => {
-                const codeOrUrl = embedTextarea.value;
-                if (!codeOrUrl) {
-                    cleanup();
-                    return;
-                }
-
-                let embedTemplate = '';
-                const expandBtnHTML = `<button class="moodle-iframe-expand-btn" style="position: absolute; top: 12px; right: 12px; z-index: 10; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 6px; padding: 8px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center;" title="Pantalla completa">
-                <svg class="icon-expand" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                <svg class="icon-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>`;
-
-                // 1. RAW HTML content without iframe -> sandbox in srcdoc
-                if (codeOrUrl.trim().startsWith('<') && !codeOrUrl.toLowerCase().includes('<iframe')) {
-                    const encodedHtml = codeOrUrl.replace(/"/g, '&quot;');
-                    embedTemplate = `&nbsp;<span class="image-resizer-wrapper align-center" contenteditable="false" style="width: 100%; display: block; margin: 1.5rem 0;">
-                        <div class="moodle-iframe-wrapper" style="position: relative; width: 100%;">
-                            ${expandBtnHTML}
-                            <div class="iframe-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; width: 100%; border-radius: var(--border-radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--ui-border); background: #f8fafc;">
-                                <iframe srcdoc="${encodedHtml}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen="true" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" loading="lazy"></iframe>
-                            </div>
-                        </div>
-                        <span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span>
-                    </span>&nbsp;<p><br></p>`;
-                }
-                // 2. Direct Iframe embed -> wrap with standard container if possible
-                else if (codeOrUrl.trim().startsWith('<') && codeOrUrl.toLowerCase().includes('iframe')) {
-                    embedTemplate = `&nbsp;<span class="image-resizer-wrapper align-center" contenteditable="false" style="width: 100%; display: block; margin: 1.5rem 0;">
-                        <div class="moodle-iframe-wrapper" style="position: relative; width: 100%;">
-                            ${expandBtnHTML}
-                            <div style="width: 100%; overflow: hidden; border-radius: var(--border-radius-md);">${codeOrUrl}</div>
-                        </div>
-                        <span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span>
-                    </span>&nbsp;<p><br></p>`;
-                }
-                // 3. Raw URL -> generate iframe
-                else {
-                    let finalUrl = codeOrUrl.trim();
-                    if (finalUrl.includes('youtube.com/watch?v=')) {
-                        finalUrl = finalUrl.replace('watch?v=', 'embed/').split('&')[0];
-                    } else if (finalUrl.includes('youtu.be/')) {
-                        finalUrl = finalUrl.replace('youtu.be/', 'youtube.com/embed/');
-                    }
-                    embedTemplate = `&nbsp;<span class="image-resizer-wrapper align-center" contenteditable="false" style="width: 100%; display: block; margin: 1.5rem 0;">
-                        <div class="moodle-iframe-wrapper" style="position: relative; width: 100%;">
-                            ${expandBtnHTML}
-                            <div class="iframe-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; width: 100%; border-radius: var(--border-radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--ui-border); background: #f8fafc;">
-                                <iframe src="${finalUrl}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen="true" allow="autoplay; fullscreen" loading="lazy"></iframe>
-                            </div>
-                        </div>
-                        <span class="custom-resizer" title="Haz clic y arrastra para cambiar tamaño" contenteditable="false"></span>
-                    </span>&nbsp;<p><br></p>`;
-                }
-
-                editorCanvas.focus();
-                if (savedRange) {
-                    const currentSel = window.getSelection();
-                    currentSel.removeAllRanges();
-                    currentSel.addRange(savedRange);
-                }
-                document.execCommand('insertHTML', false, embedTemplate);
-                cleanup();
-            };
-
-            embedCancelBtn.addEventListener('click', cancelHandler);
-            embedConfirmBtn.addEventListener('click', confirmHandler);
-            return; // Exit here. The async modal will trigger insertion on 'click'.
-        } else {
-            template = blockTemplates[value];
-            if (!template) return;
-
-            if (typeof template === 'function') {
-                template = template();
-            }
+        if (typeof template === 'function') {
+            template = template();
         }
 
         // Logic to wrap selected text into the component placeholder
@@ -1504,39 +1332,3 @@ window.toggleMoodleIframeFullscreen = function(btn) {
         }
     });
 });
-
-// Logic to bypass stacking context limits in editor and exported files
-document.addEventListener('click', function (e) {
-    const btn = e.target.closest('.moodle-iframe-expand-btn');
-    if (btn) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (typeof window.toggleMoodleIframeFullscreen === 'function') {
-            window.toggleMoodleIframeFullscreen(btn);
-        }
-    }
-});
-
-window.toggleMoodleIframeFullscreen = function (btn) {
-    var wrapper = btn.parentElement;
-    if (!wrapper.classList.contains('moodle-iframe-fullscreen')) {
-        var ph = document.createElement('div');
-        ph.className = 'iframe-placeholder-hidden';
-        ph.style.display = 'none';
-        ph.id = 'ph-' + Math.random().toString(36).substr(2, 9);
-        wrapper.setAttribute('data-ph-id', ph.id);
-        wrapper.parentNode.insertBefore(ph, wrapper);
-        document.body.appendChild(wrapper);
-        wrapper.classList.add('moodle-iframe-fullscreen');
-        document.body.style.overflow = 'hidden';
-    } else {
-        var phId = wrapper.getAttribute('data-ph-id');
-        var ph = document.getElementById(phId);
-        if (ph) {
-            ph.parentNode.insertBefore(wrapper, ph);
-            ph.parentNode.removeChild(ph);
-        }
-        wrapper.classList.remove('moodle-iframe-fullscreen');
-        document.body.style.overflow = '';
-    }
-};
