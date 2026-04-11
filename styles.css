@@ -318,23 +318,7 @@ html {
     font-weight: 600;
 }
 
-.editor-canvas h1:before {
-    content: counter(h1counter) ".\0000a0\0000a0";
-    color: var(--primary-color);
-    font-weight: 900;
-}
-
-.editor-canvas h2:before {
-    content: counter(h1counter) "." counter(h2counter) ".\0000a0\0000a0";
-    color: var(--primary-color);
-    font-weight: 900;
-}
-
-.editor-canvas h3:before {
-    content: counter(h1counter) "." counter(h2counter) "." counter(h3counter) ".\0000a0\0000a0";
-    color: var(--primary-color);
-    opacity: 0.7;
-}
+/* SECCIÓN DE NÚMEROS AUTOMÁTICOS ELIMINADA PARA PERMITIR NUMERACIÓN MANUAL */
 
 /* Enlaces */
 .editor-canvas a:not(.btn-action) {
